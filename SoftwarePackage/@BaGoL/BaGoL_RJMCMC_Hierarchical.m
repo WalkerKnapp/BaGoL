@@ -293,28 +293,16 @@ function [ZTest]=Gibbs_Z(SMD,K,Mu_X,Mu_Y,Alpha_X,Alpha_Y)
     
     T=SMD.FrameNum;
     N=length(T);
-    PX=zeros(N,K);
-    PY=zeros(N,K);
-   
-    X=repmat(SMD.X,size(Mu_X));
-    Y=repmat(SMD.Y,size(Mu_X));
-    T=repmat(T,size(Mu_X));
-    X_SE=repmat(SMD.X_SE,size(Mu_X));
-    Y_SE=repmat(SMD.Y_SE,size(Mu_X));
-    MUX=repmat(Mu_X,size(SMD.X));
-    MUY=repmat(Mu_Y,size(SMD.Y));
-    AX=repmat(Alpha_X,size(SMD.X));
-    AY=repmat(Alpha_Y,size(SMD.Y));
     
-    PX=normpdf(X-(MUX+AX.*T),0,X_SE);
-    PY=normpdf(Y-(MUY+AY.*T),0,Y_SE);
+    PX=normpdf(SMD.X-(Mu_X+Alpha_X.*T),0,SMD.X_SE);
+    PY=normpdf(SMD.Y-(Mu_Y+Alpha_Y.*T),0,SMD.Y_SE);
     P=PX.*PY+eps;
-    PNorm=P./repmat(sum(P,2),[1 K]);
+    PNorm=P./sum(P,2);
 
     if sum(sum(isnan(P)))
        [ZTest] = knnsearch([Mu_X',Mu_Y'],[SMD.X,SMD.Y]); 
     else 
-        ZTest=K+1-sum(repmat(rand(N,1),[1,K])<(cumsum(PNorm,2)+eps),2);
+        ZTest=K+1-sum(rand(N,1)<(cumsum(PNorm,2)+eps),2);
     end
      
 end
@@ -393,18 +381,11 @@ function LogL = p_Alloc(SMD,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Ws)
 %This function calculated the probability of a given allocation set.
     X=SMD.X;
     Y=SMD.Y;
-    T = repmat(SMD.FrameNum,[1,length(Mu_X)]);
     SigmaX=SMD.X_SE;
     SigmaY=SMD.Y_SE;
-    
-    Lx = length(X);
-    Lmu = length(Mu_X);
-    LogL = log(sum(repmat(Ws,[Lx,1]).*normpdf(repmat(X,[1,Lmu]),...
-            repmat(Mu_X,[Lx,1])+repmat(Alpha_X,[Lx,1]).*T,...
-            repmat(SigmaX,[1,Lmu])).*normpdf(repmat(Y,[1,Lmu]),...
-            repmat(Mu_Y,[Lx,1])+repmat(Alpha_Y,[Lx,1]).*T,...
-            repmat(SigmaY,[1,Lmu])),2));
-   
+
+    LogL = log(sum(Ws .* normpdf(X, Mu_X + Alpha_X.*SMD.FrameNum, SigmaX) ...
+        .* normpdf(Y, Mu_Y + Alpha_Y.*SMD.FrameNum, SigmaY), 2));
     LogL = sum(LogL);
     
 end
