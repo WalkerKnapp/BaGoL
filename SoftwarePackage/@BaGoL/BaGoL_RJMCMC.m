@@ -159,15 +159,15 @@ for nn=1:NChain+NBurnin
             Alpha_XTest=Alpha_X;
             Alpha_YTest=Alpha_Y;
             
-            for ID=1:K  
-                %Get new Mu and Alpha using Gibbs
-                if SigAlpha>0
+            %Get new Mu and Alpha using Gibbs
+            if SigAlpha>0
+                for ID=1:K  
                    [Mu_XTest(ID),Alpha_XTest(ID)]=Gibbs_MuAlpha(ID,Z,SMD.X,SMD.FrameNum,SMD.X_SE,SigAlpha);
                    [Mu_YTest(ID),Alpha_YTest(ID)]=Gibbs_MuAlpha(ID,Z,SMD.Y,SMD.FrameNum,SMD.Y_SE,SigAlpha);
-                else
-                   [Mu_XTest(ID)]=Gibbs_Mu(ID,Z,SMD.X,SMD.X_SE);
-                   [Mu_YTest(ID)]=Gibbs_Mu(ID,Z,SMD.Y,SMD.Y_SE);
-                end 
+                end
+            else
+                Mu_XTest = Gibbs_Mu(K, Z, SMD.X, SMD.X_SE);
+                Mu_YTest = Gibbs_Mu(K, Z, SMD.Y, SMD.Y_SE);
             end
             
             Mu_X = Mu_XTest;
@@ -423,21 +423,18 @@ function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
     
 end
 
-function [Mu]=Gibbs_Mu(ID,Z,X,Sigma)
-    %This function calculates updated Mu (1D)
+function [Mu]=Gibbs_Mu(N,Z,X,Sigma)
+    %This function calculates updated Mu
     
-    %Get the localizations from the IDth emitter
-    if sum(Z==ID) == 0
-        Mu = X(randi(length(Z)));
-    else
-        Xs=X(Z==ID);
-        Sigs = Sigma(Z==ID);
-        A = sum(Xs./(Sigs.^2));
-        B = sum(Sigs.^-2);
-        XMLE = A/B;
-        X_SE = 1/sqrt(B);
-        Mu=normrnd(XMLE,X_SE);
-    end
+    Sigma_inv_sq = Sigma.^-2;
+    
+    A = accumarray(Z, X .* Sigma_inv_sq, [N 1]);
+    B = accumarray(Z, Sigma_inv_sq, [N 1]);
+
+    XMLE = A./B;
+    X_SE = 1./sqrt(B);
+
+    Mu = normrnd(XMLE, X_SE)';
 end
 
 function [Alpha,Center] = calAlpha(Xs,Sigs,Frames,SigAlpha)
