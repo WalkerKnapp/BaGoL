@@ -293,18 +293,11 @@ function [ZTest]=Gibbs_Z(SMD,K,Mu_X,Mu_Y,Alpha_X,Alpha_Y)
     
     T=SMD.FrameNum;
     N=length(T);
-    
-    PX=normpdf(SMD.X-(Mu_X+Alpha_X.*T),0,SMD.X_SE);
-    PY=normpdf(SMD.Y-(Mu_Y+Alpha_Y.*T),0,SMD.Y_SE);
-    P=PX.*PY+eps;
+
+    P=normpdf2d(SMD.X, SMD.Y, Mu_X+Alpha_X.*T, Mu_Y+Alpha_Y.*T, SMD.X_SE, SMD.Y_SE)+eps;
     PNorm=P./sum(P,2);
 
-    if sum(sum(isnan(P)))
-       [ZTest] = knnsearch([Mu_X',Mu_Y'],[SMD.X,SMD.Y]); 
-    else 
-        ZTest=K+1-sum(rand(N,1)<(cumsum(PNorm,2)+eps),2);
-    end
-     
+    ZTest=K+1-sum(rand(N,1)<(cumsum(PNorm,2)+eps),2);
 end
 
 function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
@@ -381,8 +374,18 @@ function LogL = p_Alloc(SMD,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Ws)
     SigmaX=SMD.X_SE;
     SigmaY=SMD.Y_SE;
 
-    LogL = log(sum(Ws .* normpdf(X, Mu_X + Alpha_X.*SMD.FrameNum, SigmaX) ...
-        .* normpdf(Y, Mu_Y + Alpha_Y.*SMD.FrameNum, SigmaY), 2));
+    LogL = log(sum(Ws .* normpdf2d(X, Y, ...
+        Mu_X + Alpha_X.*SMD.FrameNum, Mu_Y + Alpha_Y.*SMD.FrameNum, ...
+        SigmaX, SigmaY), 2));
     LogL = sum(LogL);
     
+end
+
+function P=normpdf2d(X, Y, Mu_X, Mu_Y, Sigma_X, Sigma_Y)
+    % Normal PDF with a diagonal covariance matrix
+    % Based on matlab's "mvnpdf" implementation, simplified for 2d
+
+    quadform = ((X - Mu_X) ./ Sigma_X).^2 + ((Y - Mu_Y) ./ Sigma_Y).^2;
+
+    P = exp(-0.5*quadform - log(2*pi)) ./ (Sigma_X .* Sigma_Y);
 end
