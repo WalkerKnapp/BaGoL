@@ -240,8 +240,8 @@ for nn=1:NChain+NBurnin
             %Prior Raio
             PR = Pk(K+1)/Pk(K);
             
-            LAlloc_Current = p_Alloc(pair_probs,ones(1,K)/K);
-            LAlloc_Test = p_Alloc(pair_probs_test,ones(1,K+1)/(K+1));
+            LAlloc_Current = p_Alloc(pair_probs);
+            LAlloc_Test = p_Alloc(pair_probs_test);
             AllocR = exp(LAlloc_Test-LAlloc_Current);
             
             %Posterior Ratio
@@ -309,8 +309,8 @@ for nn=1:NChain+NBurnin
             PR = Pk(K-1)/Pk(K);
             
             %Probability Ratio of Proposed Allocation and Current Allocation 
-            LAlloc_Current = p_Alloc(pair_probs,ones(1,K)/K);
-            LAlloc_Test = p_Alloc(pair_probs_test,ones(1,K-1)/(K-1));
+            LAlloc_Current = p_Alloc(pair_probs);
+            LAlloc_Test = p_Alloc(pair_probs_test);
             AllocR = exp(LAlloc_Test-LAlloc_Current);
             
             %Posterior Ratio
@@ -457,9 +457,9 @@ function [Alpha,Center] = calAlpha(Xs,Sigs,Frames,SigAlpha)
     Center = (A-Alpha*B)/C;
 end
 
-function LogL = p_Alloc(pair_probs,Ws)
+function LogL = p_Alloc(pair_probs)
     %This function calculated the probability of a given allocation set.
-    LogL = log(sum(Ws .* pair_probs, 2));
+    LogL = log(mean(pair_probs, 2));
     LogL = sum(LogL);
 end
 
