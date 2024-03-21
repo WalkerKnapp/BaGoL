@@ -38,21 +38,11 @@ for ii = 1:10
     
     %Sample Eta
     Eta_Prop = gamrnd(Alpha_Prop,Eta/Alpha_Prop);
+
+    LogLikeR = sum(logGammaRatioK(NPoints, K*Eta_Prop, K*Eta, Gamma));
     
-    LogLikeR1 = log(gampdf(NPoints,K*Eta_Prop,Gamma)); 
-    LogLikeR2 = log(gampdf(NPoints,K*Eta,Gamma));
-    if sum(isinf(LogLikeR1) & isinf(LogLikeR2)) 
-        Ind = isinf(LogLikeR1) & isinf(LogLikeR2);
-        LogLikeR1(Ind) = 0;
-        LogLikeR2(Ind) = 0;
-    end
-    LogLikeR2(isinf(LogLikeR1)) = 0;
-    LogLikeR1(isinf(LogLikeR1)) = 0;
-    LogLikeR = sum(LogLikeR1 - LogLikeR2);
-    
-    LogPriorR = log(gampdf(Eta_Prop,Alpha,Beta)) - log(gampdf(Eta,Alpha,Beta));
-    LogPropR = log(gampdf(Eta,Alpha_Prop,Eta_Prop/Alpha_Prop)) ...
-        - log(gampdf(Eta_Prop,Alpha_Prop,Eta/Alpha_Prop));
+    LogPriorR = logGammaRatioX(Eta_Prop, Eta, Alpha, Beta);
+    LogPropR = logGammaRatioXTheta(Eta, Eta_Prop, Alpha_Prop, Eta_Prop/Alpha_Prop, Eta/Alpha_Prop);
 
     if LogLikeR + LogPriorR + LogPropR > log(rand())
        Eta = Eta_Prop; 
@@ -60,19 +50,11 @@ for ii = 1:10
 
     %Sample Gamma
     Gamma_Prop = gamrnd(Alpha_Prop,Gamma/Alpha_Prop);
-    LogLikeR1 = log(gampdf(NPoints,K*Eta,Gamma_Prop)); 
-    LogLikeR2 = log(gampdf(NPoints,K*Eta,Gamma));
-    if sum(isinf(LogLikeR1) & isinf(LogLikeR2)) 
-        Ind = isinf(LogLikeR1) & isinf(LogLikeR2);
-        LogLikeR1(Ind) = 0;
-        LogLikeR2(Ind) = 0;
-    end
-    LogLikeR2(isinf(LogLikeR1)) = 0;
-    LogLikeR1(isinf(LogLikeR1)) = 0;
-    LogLikeR = sum(LogLikeR1 - LogLikeR2);
-    LogPriorR = log(gampdf(Gamma_Prop,Alpha,Beta)) - log(gampdf(Gamma,Alpha,Beta));
-    LogPropR = log(gampdf(Gamma,Alpha_Prop,Gamma_Prop/Alpha_Prop)) ...
-        - log(gampdf(Gamma_Prop,Alpha_Prop,Gamma/Alpha_Prop));
+    
+    LogLikeR = sum(logGammaRatioTheta(NPoints, K*Eta, Gamma_Prop, Gamma));
+
+    LogPriorR = logGammaRatioX(Gamma_Prop, Gamma, Alpha, Beta);
+    LogPropR = logGammaRatioXTheta(Gamma, Gamma_Prop, Alpha_Prop, Gamma_Prop/Alpha_Prop, Gamma/Alpha_Prop);
 
     if LogLikeR + LogPriorR + LogPropR > log(rand())
        Gamma = Gamma_Prop; 
@@ -82,4 +64,28 @@ end
 Xi(1) = Eta;
 Xi(2) = Gamma;
 
+end
+
+function R = logGammaRatioK(x, k1, k2, theta)
+    % An analytical solution to the log of the ratio of two Gamma PDFs
+    % with the same `x` and `theta` parameters, and differing `k`.
+    R = (k1 - k2) .* log(x) + (k2 - k1) .* log(theta) + gammaln(k2) - gammaln(k1);
+end
+
+function R = logGammaRatioTheta(x, k, theta1, theta2)
+    % An analytical solution to the log of the ratio of two Gamma PDFs
+    % with the same `x` and `k` parameters, and differing `theta`.
+    R = k * log(theta2 ./ theta1) + x./theta2 - x./theta1;
+end
+
+function R = logGammaRatioX(x1, x2, k, theta)
+    % An analytical solution to the log of the ratio of two Gamma PDFs
+    % with the same `k` and `theta` parameters, and differing `x`.
+    R = (k - 1) .* log(x1 ./ x2) + (x2 ./ theta) - (x1 ./ theta);
+end
+
+function R = logGammaRatioXTheta(x1, x2, k, theta1, theta2)
+    % An analytical solution to the log of the ratio of two Gamma PDFs
+    % with the same `k` parameter and different `x` and `theta`.
+    R = k .* log(theta2 ./ theta1) + (k - 1) * log(x1 ./ x2) + (x2 ./ theta2) - (x1 ./ theta1);
 end
