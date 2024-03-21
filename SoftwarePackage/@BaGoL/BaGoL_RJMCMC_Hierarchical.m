@@ -124,17 +124,23 @@ for nn=1:NSamples
     %Get move type:
     JumpType=length(PMove)+1-sum(rand<cumsum(PMove));
     K = length(Mu_X);
-    for ii = K:-1:1
-        if sum(Z==ii)==0
-            Mu_X(ii)=[];
-            Mu_Y(ii)=[];
-            Alpha_X(ii)=[];
-            Alpha_Y(ii)=[];
-            K = length(Mu_X);%K-1;
-            Z(Z>ii) = Z(Z>ii) - 1;
-            pair_probs(:, ii) = [];
-        end 
+
+    % Remove emitters with no localizations
+    localized_emitters = ismember(1:K, Z);
+    unlocalized_emitters = ~localized_emitters;
+    if any(unlocalized_emitters)
+        Mu_X(unlocalized_emitters) = [];
+        Mu_Y(unlocalized_emitters) = [];
+        Alpha_X(unlocalized_emitters) = [];
+        Alpha_Y(unlocalized_emitters) = [];
+        pair_probs(:, unlocalized_emitters) = [];
+
+        K = length(Mu_X);
+
+        id_mapping = cumsum(localized_emitters);
+        Z = id_mapping(Z)';
     end
+
     switch JumpType
         case 1  %Move Mu, Alpha 
             Mu_XTest=Mu_X;
