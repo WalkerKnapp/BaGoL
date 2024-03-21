@@ -28,6 +28,7 @@ if nargin < 5
     Beta = 50;
 end
 Alpha_Prop = 3000;
+Alpha_Prop_RandGs = randg(Alpha_Prop, 10*2) / Alpha_Prop;
 
 Ind = NPoints > 0;
 NPoints = NPoints(Ind);
@@ -37,7 +38,7 @@ K = K(Ind);
 for ii = 1:10
     
     %Sample Eta
-    Eta_Prop = gamrnd(Alpha_Prop,Eta/Alpha_Prop);
+    Eta_Prop = Alpha_Prop_RandGs(2*ii) * Eta;
 
     LogLikeR = sum(logGammaRatioK(NPoints, K*Eta_Prop, K*Eta, Gamma));
     
@@ -49,7 +50,7 @@ for ii = 1:10
     end
 
     %Sample Gamma
-    Gamma_Prop = gamrnd(Alpha_Prop,Gamma/Alpha_Prop);
+    Gamma_Prop = Alpha_Prop_RandGs(2*ii + 1) * Gamma;
     
     LogLikeR = sum(logGammaRatioTheta(NPoints, K*Eta, Gamma_Prop, Gamma));
 
