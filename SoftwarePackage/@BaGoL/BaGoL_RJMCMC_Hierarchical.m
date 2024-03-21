@@ -178,9 +178,6 @@ for nn=1:NSamples
                 Alpha_XTest = cat(2,Alpha_X,0);
                 Alpha_YTest = cat(2,Alpha_Y,0);
             end
-            
-            %Gibbs allocation
-            [ZTest]=Gibbs_Z(SMD,K+1,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest);
                         
             %Prior Raio
             PR = Pk(K+1)/Pk(K);
@@ -195,6 +192,9 @@ for nn=1:NSamples
             Accept = isinf(LAlloc_Current) & LAlloc_Current < 0;
             
             if rand<A || Accept
+                %Gibbs allocation
+                [ZTest]=Gibbs_Z(SMD,K+1,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest);
+
                 Z=ZTest;
                 K=K+1;
                 Mu_X=Mu_XTest;
@@ -223,9 +223,6 @@ for nn=1:NSamples
             Alpha_XTest(ID) = [];
             Alpha_YTest(ID) = [];
             
-            %Gibbs allocation
-            [ZTest]=Gibbs_Z(SMD,K-1,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest);
-            
             %Prior Raio
             PR = Pk(K-1)/Pk(K);
             
@@ -238,6 +235,9 @@ for nn=1:NSamples
             A = PR*AllocR;
             
             if rand<A
+                %Gibbs allocation
+                [ZTest]=Gibbs_Z(SMD,K-1,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest);
+
                 Z=ZTest;
                 K=K-1;
                 Mu_X=Mu_XTest;
