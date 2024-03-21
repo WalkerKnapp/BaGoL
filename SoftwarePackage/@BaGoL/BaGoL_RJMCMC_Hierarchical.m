@@ -295,9 +295,9 @@ function [ZTest]=Gibbs_Z(SMD,K,Mu_X,Mu_Y,Alpha_X,Alpha_Y)
     N=length(T);
 
     P=normpdf2d(SMD.X, SMD.Y, Mu_X+Alpha_X.*T, Mu_Y+Alpha_Y.*T, SMD.X_SE, SMD.Y_SE)+eps;
-    PNorm=P./sum(P,2);
+    PNorm=cumsum(P,2)./sum(P,2);
 
-    ZTest=K+1-sum(rand(N,1)<(cumsum(PNorm,2)+eps),2);
+    ZTest=K+1-sum(rand(N,1)<(PNorm+eps),2);
 end
 
 function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
