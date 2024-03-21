@@ -158,6 +158,7 @@ for nn=1:NChain+NBurnin
 
         K = length(Mu_X);
 
+        % Remap IDs in Z to fill vacant spots
         id_mapping = cumsum(localized_emitters);
         Z = id_mapping(Z)';
     end
@@ -382,12 +383,15 @@ end
 end
 
 function [ZTest]=Gibbs_Z(K,pair_probs)
-    %This function calculates updated allocations (Z)
-    P=pair_probs+eps;
-    PNorm=cumsum(P,2)./sum(P,2);
+    % Sample a new "allocation" for each localization, using the
+    % probability that it belongs to an emitter (stored in pair_probs) as
+    % the probability of an allocation being chosen.
 
-    ZTest=K+1-sum(rand(size(PNorm, 1),1)<(PNorm+eps),2);
+    P=pair_probs+eps;  % Adjusted up to account for pair_probs rows with all 0
+    CDF=cumsum(P,2)./sum(P,2);
 
+    % Chooses a random index into each row with weight from CDF
+    ZTest=K+1-sum(rand(size(PNorm, 1),1)<(CDF+eps),2);
 end
 
 function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
@@ -433,12 +437,12 @@ function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
 end
 
 function [Mu]=Gibbs_Mu(N,Z,X,Sigma)
-    %This function calculates updated Mu
-    
+    % Sample a new emitter location along one axis 
+    % for all allocated emitters in Z.
     Sigma_inv_sq = Sigma.^-2;
     
-    A = accumarray(Z, X .* Sigma_inv_sq, [N 1]);
-    B = accumarray(Z, Sigma_inv_sq, [N 1]);
+    A = accumarray(Z, X .* Sigma_inv_sq, [N 1]);  % Sum X / se^2 for all emitters
+    B = accumarray(Z, Sigma_inv_sq, [N 1]);  % Sum se^-2 for all emitters
 
     XMLE = A./B;
     X_SE = 1./sqrt(B);
