@@ -161,7 +161,7 @@ for nn=1:NChain+NBurnin
         id_mapping = cumsum(localized_emitters);
         Z = id_mapping(Z)';
     end
-    
+
     switch JumpType
         case 1  %Move Mu, Alpha 
             Mu_XTest=Mu_X;
@@ -234,7 +234,8 @@ for nn=1:NChain+NBurnin
                 Alpha_YTest = cat(2,Alpha_Y,0);
             end
 
-            pair_probs_test = computePairProbs(SMD, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
+            new_emitter_probs = computePairProbs(SMD, Mu_XTest(end), Mu_YTest(end), Alpha_XTest(end), Alpha_YTest(end));
+            pair_probs_test = cat(2, pair_probs, new_emitter_probs);
                         
             %Prior Raio
             PR = Pk(K+1)/Pk(K);
@@ -302,7 +303,7 @@ for nn=1:NChain+NBurnin
             Alpha_XTest(ID) = [];
             Alpha_YTest(ID) = [];
 
-            pair_probs_test = computePairProbs(SMD, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
+            pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
             
             %Prior Raio
             PR = Pk(K-1)/Pk(K);
