@@ -133,8 +133,11 @@ else
 end
 Pk = Pk/sum(Pk);
 
-% Intial Allocation
-Z=Gibbs_Z(SMD,K,Mu_X,Mu_Y,Alpha_X,Alpha_Y);
+% Initial probabilities for each loc-emitter pair
+pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
+
+% Initial Allocation
+Z=Gibbs_Z(K, pair_probs);
 
 
 % Run Chain
@@ -150,6 +153,8 @@ for nn=1:NChain+NBurnin
             Alpha_Y(ii)=[];
             K = length(Mu_X);%K-1;
             Z(Z>ii) = Z(Z>ii) - 1;
+
+            pair_probs(:, ii) = [];
         end 
     end
     switch JumpType
@@ -174,6 +179,8 @@ for nn=1:NChain+NBurnin
             Mu_Y = Mu_YTest;
             Alpha_X = Alpha_XTest;
             Alpha_Y = Alpha_YTest;
+
+            pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
             
             if nn>NBurnin %Then record in chain
                 
@@ -188,7 +195,7 @@ for nn=1:NChain+NBurnin
 
         case 2  %Reallocation of Z
             
-            [ZTest]=Gibbs_Z(SMD, K,Mu_X,Mu_Y,Alpha_X,Alpha_Y);
+            [ZTest]=Gibbs_Z(K, pair_probs);
             %Always accepted
             Z = ZTest;
                         
@@ -221,12 +228,14 @@ for nn=1:NChain+NBurnin
                 Alpha_XTest = cat(2,Alpha_X,0);
                 Alpha_YTest = cat(2,Alpha_Y,0);
             end
+
+            pair_probs_test = computePairProbs(SMD, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
                         
             %Prior Raio
             PR = Pk(K+1)/Pk(K);
             
-            LAlloc_Current = p_Alloc(SMD,Mu_X,Mu_Y,Alpha_X,Alpha_Y,ones(1,K)/K);
-            LAlloc_Test = p_Alloc(SMD,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest,ones(1,K+1)/(K+1));
+            LAlloc_Current = p_Alloc(pair_probs,ones(1,K)/K);
+            LAlloc_Test = p_Alloc(pair_probs_test,ones(1,K+1)/(K+1));
             AllocR = exp(LAlloc_Test-LAlloc_Current);
             
             %Posterior Ratio
@@ -236,7 +245,7 @@ for nn=1:NChain+NBurnin
             
             if rand<A || Accept
                 %direct sampling of allocations
-                [ZTest]=Gibbs_Z(SMD,K+1,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest);
+                [ZTest]=Gibbs_Z(K+1,pair_probs_test);
 
                 Z=ZTest;
                 K=K+1;
@@ -244,6 +253,7 @@ for nn=1:NChain+NBurnin
                 Mu_Y=Mu_YTest;
                 Alpha_X=Alpha_XTest;
                 Alpha_Y=Alpha_YTest;
+                pair_probs=pair_probs_test;
             end
             
             if nn>NBurnin %Then record in chain
@@ -286,13 +296,15 @@ for nn=1:NChain+NBurnin
             Mu_YTest(ID) = [];
             Alpha_XTest(ID) = [];
             Alpha_YTest(ID) = [];
+
+            pair_probs_test = computePairProbs(SMD, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
             
             %Prior Raio
             PR = Pk(K-1)/Pk(K);
             
             %Probability Ratio of Proposed Allocation and Current Allocation 
-            LAlloc_Current = p_Alloc(SMD,Mu_X,Mu_Y,Alpha_X,Alpha_Y,ones(1,K)/K);
-            LAlloc_Test = p_Alloc(SMD,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest,ones(1,K-1)/(K-1));
+            LAlloc_Current = p_Alloc(pair_probs,ones(1,K)/K);
+            LAlloc_Test = p_Alloc(pair_probs_test,ones(1,K-1)/(K-1));
             AllocR = exp(LAlloc_Test-LAlloc_Current);
             
             %Posterior Ratio
@@ -300,7 +312,7 @@ for nn=1:NChain+NBurnin
             
             if rand<A
                 %Gibbs allocation
-                [ZTest]=Gibbs_Z(SMD,K-1,Mu_XTest,Mu_YTest,Alpha_XTest,Alpha_YTest);
+                [ZTest]=Gibbs_Z(K-1, pair_probs_test);
 
                 Z=ZTest;
                 K=K-1;
@@ -308,6 +320,7 @@ for nn=1:NChain+NBurnin
                 Mu_Y=Mu_YTest;
                 Alpha_X=Alpha_XTest;
                 Alpha_Y=Alpha_YTest;
+                pair_probs = pair_probs_test;
             end
             
             if nn>NBurnin %Then record in chain
@@ -362,16 +375,12 @@ end
 
 end
 
-function [ZTest]=Gibbs_Z(SMD,K,Mu_X,Mu_Y,Alpha_X,Alpha_Y)
+function [ZTest]=Gibbs_Z(K,pair_probs)
     %This function calculates updated allocations (Z)
-    
-    T=SMD.FrameNum;
-    N=length(T);
-    
-    P=normpdf2d(SMD.X, SMD.Y, Mu_X+Alpha_X.*T, Mu_Y+Alpha_Y.*T, SMD.X_SE, SMD.Y_SE)+eps;
+    P=pair_probs+eps;
     PNorm=cumsum(P,2)./sum(P,2);
 
-    ZTest=K+1-sum(rand(N,1)<(PNorm+eps),2);
+    ZTest=K+1-sum(rand(size(PNorm, 1),1)<(PNorm+eps),2);
 
 end
 
@@ -442,18 +451,20 @@ function [Alpha,Center] = calAlpha(Xs,Sigs,Frames,SigAlpha)
     Center = (A-Alpha*B)/C;
 end
 
-function LogL = p_Alloc(SMD,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Ws)
-%This function calculated the probability of a given allocation set.
-    X=SMD.X;
-    Y=SMD.Y;
-    SigmaX=SMD.X_SE;
-    SigmaY=SMD.Y_SE;
-
-    LogL = log(sum(Ws .* normpdf2d(X, Y, ...
-        Mu_X + Alpha_X.*SMD.FrameNum, Mu_Y + Alpha_Y.*SMD.FrameNum, ...
-        SigmaX, SigmaY), 2));
+function LogL = p_Alloc(pair_probs,Ws)
+    %This function calculated the probability of a given allocation set.
+    LogL = log(sum(Ws .* pair_probs, 2));
     LogL = sum(LogL);
-    
+end
+
+function P=computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y)
+    % Compute the probability that each localization (in SMD) belongs to
+    % each emitter defined by Mu_X, Mu_Y, Alpha_X, Alpha_Y
+    % Can be recalculated only when Mu or Alpha is changed.
+
+    P = normpdf2d(SMD.X, SMD.Y, ...
+        Mu_X + Alpha_X.*SMD.FrameNum, Mu_Y + Alpha_Y.*SMD.FrameNum, ...
+        SMD.X_SE, SMD.Y_SE);
 end
 
 function P=normpdf2d(X, Y, Mu_X, Mu_Y, Sigma_X, Sigma_Y)
