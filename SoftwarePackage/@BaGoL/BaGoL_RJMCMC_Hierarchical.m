@@ -119,10 +119,13 @@ else
 end
 Pk = Pk/sum(Pk);
 
+% Convert PMove to CDF to simplify sampling in loop
+PMove = cumsum(PMove);
+
 % Run Chain
 for nn=1:NSamples
     %Get move type:
-    JumpType=length(PMove)+1-sum(rand<cumsum(PMove));
+    JumpType = length(PMove)+1 - sum(rand < PMove);
     K = length(Mu_X);
 
     % Remove emitters with no localizations
@@ -317,7 +320,8 @@ function [ZTest]=Gibbs_Z(K,pair_probs)
     CDF=cumsum(P,2)./sum(P,2);
 
     % Chooses a random index into each row with weight from CDF
-    ZTest=K+1-sum(rand(size(CDF, 1),1)<(CDF+eps),2);
+    random_choice = rand(size(CDF, 1),1);
+    ZTest=K+1-sum(random_choice<(CDF+eps),2);
 end
 
 function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
