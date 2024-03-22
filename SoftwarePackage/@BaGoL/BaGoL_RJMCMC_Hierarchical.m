@@ -1,4 +1,4 @@
-function [K,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Z]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,CDF,Area,...
+function [K,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Z]=BaGoL_RJMCMC_Hierarchical(SMD,Area,...
                SigAlpha,PMove,NSamples,Xi,Mu_X,Mu_Y,Alpha_X,Alpha_Y)
 %BaGoL_RJMCMC_Hierarchical BaGoL's core RJMCMC algorithm that takes
 %NSamples samples from the posterior using RJMCMC and return the last
@@ -68,26 +68,26 @@ function [K,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Z]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,C
 X_min = min(SMD.X-3*SMD.X_SE);
 Y_min = min(SMD.Y-3*SMD.Y_SE);
 
-if nargin<6
+if nargin<4
     PMove = [.25 .25 .25 .25]; %PMove = [Theta Z Birth Death]
 end
-if nargin<7
+if nargin<5
     NSamples = 10;
 end
 
 N=length(SMD.X);
-if nargin<9
+if nargin<7
 %Intial K Guess
     K=ceil(N/prod(Xi));
 else
     K=length(Mu_X); 
 end
-if nargin<9
+if nargin<7
 %Initial Locations
     Mu_X =SMD.X(randi(N,[1 K]))';
     Mu_Y =SMD.Y(randi(N,[1 K]))';
 end
-if nargin<11
+if nargin<9
 %Initial Alphas
     Alpha_X = zeros([1 K]);
     Alpha_Y = zeros([1 K]);
@@ -168,13 +168,11 @@ for nn=1:NSamples
         case 3  %Add
                         
 %           Sample the Emitter location from SR data
-            ID = find(CDF>rand(),1);
-            if isempty(ID)
-                ID = length(CDF); 
-            end
-            [Ydraw,Xdraw]=ind2sub(size(PDFgrid),ID);
-            Mu_XTest = cat(2,Mu_X,Xdraw+X_min-1);
-            Mu_YTest = cat(2,Mu_Y,Ydraw+Y_min-1);      
+            em_sample = randi(length(SMD.X));
+            Xdraw = randn() .* SMD.X_SE(em_sample) + SMD.X(em_sample);
+            Ydraw = randn() .* SMD.Y_SE(em_sample) + SMD.Y(em_sample);
+            Mu_XTest = cat(2, Mu_X, Xdraw);
+            Mu_YTest = cat(2, Mu_Y, Ydraw);     
 
             if SigAlpha>0
                 Alpha_XTest = cat(2,Alpha_X,SigAlpha*randn());
@@ -185,6 +183,8 @@ for nn=1:NSamples
             end
 
             new_emitter_probs = computePairProbs(SMD, Mu_XTest(end), Mu_YTest(end), Alpha_XTest(end), Alpha_YTest(end));
+            draw_pdf = sum(new_emitter_probs);
+
             pair_probs_test = cat(2, pair_probs, new_emitter_probs);
                         
             %Prior Raio
@@ -195,7 +195,7 @@ for nn=1:NSamples
             AllocR = exp(LAlloc_Test-LAlloc_Current);
             
             %Posterior Ratio
-            A = PR*AllocR/(Area*PDFgrid(ID));
+            A = PR*AllocR/(Area*draw_pdf);
             
             Accept = isinf(LAlloc_Current) & LAlloc_Current < 0;
             

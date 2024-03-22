@@ -76,9 +76,6 @@ PDFgrid = zeros(size(Xg));
 for pp = 1:length(SMD.X)
     PDFgrid = PDFgrid + normpdf(Xg,SMD.X(pp),SMD.X_SE(pp)).*normpdf(Yg,SMD.Y(pp),SMD.Y_SE(pp)); 
 end
-
-CDF = cumsum(PDFgrid(:)/sum(PDFgrid(:)));
-PDFgrid = PDFgrid/sum(PDFgrid(:));
 Area = sum(sum(PDFgrid>max(PDFgrid(:))/1000));
 
 Chain(NChain).N = [];
@@ -215,13 +212,11 @@ for nn=1:NChain+NBurnin
         case 3  %Add
                         
 %           Sample the Emitter location from SR data
-            ID = find(CDF>rand(),1);
-            if isempty(ID)
-                ID = length(CDF); 
-            end
-            [Ydraw,Xdraw]=ind2sub(size(PDFgrid),ID);
-            Mu_XTest = cat(2,Mu_X,Xdraw+X_min-1);
-            Mu_YTest = cat(2,Mu_Y,Ydraw+Y_min-1);      
+            em_sample = randi(length(SMD.X));
+            Xdraw = randn() .* SMD.X_SE(em_sample) + SMD.X(em_sample);
+            Ydraw = randn() .* SMD.Y_SE(em_sample) + SMD.Y(em_sample);
+            Mu_XTest = cat(2, Mu_X, Xdraw);
+            Mu_YTest = cat(2, Mu_Y, Ydraw);
 
             if SigAlpha>0
                 Alpha_XTest = cat(2,Alpha_X,SigAlpha*randn());
@@ -231,7 +226,9 @@ for nn=1:NChain+NBurnin
                 Alpha_YTest = cat(2,Alpha_Y,0);
             end
 
-            new_emitter_probs = computePairProbs(SMD, Mu_XTest(end), Mu_YTest(end), Alpha_XTest(end), Alpha_YTest(end));
+            new_emitter_probs = computePairProbs(SMD, Xdraw, Ydraw, Alpha_XTest(end), Alpha_YTest(end));
+            draw_pdf = sum(new_emitter_probs);
+
             pair_probs_test = cat(2, pair_probs, new_emitter_probs);
                         
             %Prior Raio
@@ -242,7 +239,7 @@ for nn=1:NChain+NBurnin
             AllocR = exp(LAlloc_Test-LAlloc_Current);
             
             %Posterior Ratio
-            A = PR*AllocR/(Area*PDFgrid(ID));
+            A = PR*AllocR/(Area*draw_pdf);
             
             Accept = isinf(LAlloc_Current) & LAlloc_Current < 0;
             
