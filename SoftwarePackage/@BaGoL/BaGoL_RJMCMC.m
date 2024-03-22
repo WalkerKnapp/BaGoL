@@ -125,13 +125,24 @@ else
 end
 %Calculating the Prior
 if length(Xi)>1
-   Gamma_K=Xi(1);
-   Gamma_Theta=Xi(2);
-   Pk=gampdf(N,(1:LengN)*Gamma_K,Gamma_Theta);
+    Gamma_K=Xi(1);
+    Gamma_Theta=Xi(2);
+   
+    % A highly optimized analytical solution to both:
+    % PR_addition = gammapdf(N, (x+1)*k, theta)/gammapdf(N, x*k, theta)
+    % PR_removal = gammapdf(N, (x-1)*k, theta)/gammapdf(N, x*k, theta)
+    C = Gamma_K * log(N/Gamma_Theta);
+    gam = gammaln((0:LengN+1)*Gamma_K);
+
+    base = gam(2:end-1);
+    PR_addition = exp(base - gam(3:end) + C);
+    PR_removal = exp(base - gam(1:end-2) - C);
 else
-   Pk=poisspdf(N,(1:LengN)*Xi); 
+    Pk=poisspdf(N,(0:LengN+1)*Xi); 
+
+    PR_addition = Pk(3:end) ./ Pk(2:end-1);
+    PR_removal = Pk(1:end-2) ./ Pk(2:end-1);
 end
-Pk = Pk/sum(Pk);
 
 % Initial probabilities for each loc-emitter pair
 pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
@@ -241,7 +252,7 @@ for nn=1:NChain+NBurnin
             pair_probs_test = cat(2, pair_probs, new_emitter_probs);
                         
             %Prior Raio
-            PR = Pk(K+1)/Pk(K);
+            PR = PR_addition(K);
             
             LAlloc_Current = p_Alloc(pair_probs);
             LAlloc_Test = p_Alloc(pair_probs_test);
@@ -309,7 +320,7 @@ for nn=1:NChain+NBurnin
             pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
             
             %Prior Raio
-            PR = Pk(K-1)/Pk(K);
+            PR = PR_removal(K);
             
             %Probability Ratio of Proposed Allocation and Current Allocation 
             LAlloc_Current = p_Alloc(pair_probs);
