@@ -148,7 +148,8 @@ end
 pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
 
 % Initial Allocation
-Z=Gibbs_Z(K, pair_probs);
+[Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
+    Gibbs_Z(pair_probs, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
 
 % Convert PMove to CDF to simplify sampling in loop
 PMove = cumsum(PMove);
@@ -158,23 +159,6 @@ for nn=1:NChain+NBurnin
     %Get move type:
     JumpType = length(PMove)+1 - sum(rand < PMove);
     K = length(Mu_X);
-
-    % Remove emitters with no localizations
-    localized_emitters = ismember(1:K, Z);
-    unlocalized_emitters = ~localized_emitters;
-    if any(unlocalized_emitters)
-        Mu_X(unlocalized_emitters) = [];
-        Mu_Y(unlocalized_emitters) = [];
-        Alpha_X(unlocalized_emitters) = [];
-        Alpha_Y(unlocalized_emitters) = [];
-        pair_probs(:, unlocalized_emitters) = [];
-
-        K = length(Mu_X);
-
-        % Remap IDs in Z to fill vacant spots
-        id_mapping = cumsum(localized_emitters);
-        Z = id_mapping(Z)';
-    end
 
     switch JumpType
         case 1  %Move Mu, Alpha 
@@ -214,13 +198,12 @@ for nn=1:NChain+NBurnin
 
         case 2  %Reallocation of Z
             
-            [ZTest]=Gibbs_Z(K, pair_probs);
-            %Always accepted
-            Z = ZTest;
+            [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
+                Gibbs_Z(pair_probs, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
                         
             if nn>NBurnin %Then record in chain
                 
-                Chain(nn-NBurnin).N = K;
+                Chain(nn-NBurnin).N = length(Mu_X);
                 Chain(nn-NBurnin).X = Mu_X';
                 Chain(nn-NBurnin).Y = Mu_Y';
                 Chain(nn-NBurnin).AlphaX = Alpha_X';
@@ -264,21 +247,14 @@ for nn=1:NChain+NBurnin
             Accept = isinf(LAlloc_Current) & LAlloc_Current < 0;
             
             if rand<A || Accept
-                %direct sampling of allocations
-                [ZTest]=Gibbs_Z(K+1,pair_probs_test);
-
-                Z=ZTest;
-                K=K+1;
-                Mu_X=Mu_XTest;
-                Mu_Y=Mu_YTest;
-                Alpha_X=Alpha_XTest;
-                Alpha_Y=Alpha_YTest;
-                pair_probs=pair_probs_test;
+                %Gibbs allocation
+                [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
+                    Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
             end
             
             if nn>NBurnin %Then record in chain
                 
-                Chain(nn-NBurnin).N = K;
+                Chain(nn-NBurnin).N = length(Mu_X);
                 Chain(nn-NBurnin).X = Mu_X';
                 Chain(nn-NBurnin).Y = Mu_Y';
                 Chain(nn-NBurnin).AlphaX = Alpha_X';
@@ -332,20 +308,13 @@ for nn=1:NChain+NBurnin
             
             if rand<A
                 %Gibbs allocation
-                [ZTest]=Gibbs_Z(K-1, pair_probs_test);
-
-                Z=ZTest;
-                K=K-1;
-                Mu_X=Mu_XTest;
-                Mu_Y=Mu_YTest;
-                Alpha_X=Alpha_XTest;
-                Alpha_Y=Alpha_YTest;
-                pair_probs = pair_probs_test;
+                [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
+                    Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
             end
             
             if nn>NBurnin %Then record in chain
                 
-                Chain(nn-NBurnin).N = K;
+                Chain(nn-NBurnin).N = length(Mu_X);
                 Chain(nn-NBurnin).X = Mu_X';
                 Chain(nn-NBurnin).Y = Mu_Y';
                 Chain(nn-NBurnin).AlphaX = Alpha_X';
@@ -395,16 +364,36 @@ end
 
 end
 
-function [ZTest]=Gibbs_Z(K,pair_probs)
+function [ZTest, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs]=Gibbs_Z(pair_probs, Mu_X, Mu_Y, Alpha_X, Alpha_Y)
     % Sample a new "allocation" for each localization, using the
     % probability that it belongs to an emitter (stored in pair_probs) as
     % the probability of an allocation being chosen.
+    K = length(Mu_X);
 
     P=pair_probs+eps;  % Adjusted up to account for pair_probs rows with all 0
     CDF=cumsum(P,2)./sum(P,2);
 
     % Chooses a random index into each row with weight from CDF
-    ZTest=K+1-sum(rand(size(CDF, 1),1)<(CDF+eps),2);
+    random_choice = rand(size(CDF, 1),1);
+    threshold = random_choice<(CDF+eps);
+
+    % Check for emitters with no localizations
+    first_localized = any(threshold(:, 1));  % Any loc passing the threshold in the first column has been assigned to the first emitter
+    remaining_localized = any(diff(threshold, 1, 2), 1);  % Use diff to identify which emitter other localizations belong to
+    if ~(first_localized && all(remaining_localized))
+        unlocalized_emitters = ~[first_localized remaining_localized];
+
+        threshold(:, unlocalized_emitters) = [];
+        Mu_X(unlocalized_emitters) = [];
+        Mu_Y(unlocalized_emitters) = [];
+        Alpha_X(unlocalized_emitters) = [];
+        Alpha_Y(unlocalized_emitters) = [];
+        pair_probs(:, unlocalized_emitters) = [];
+
+        K = length(Mu_X);
+    end
+
+    ZTest=K+1-sum(threshold,2);
 end
 
 function [Mu,Alpha]=Gibbs_MuAlpha(ID,Z,X,T,Sigma,SigAlpha)
