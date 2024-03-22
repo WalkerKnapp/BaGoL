@@ -127,13 +127,14 @@ else
     PR_removal = Pk(1:end-2) ./ Pk(2:end-1);
 end
 
-% Convert PMove to CDF to simplify sampling in loop
+% Presample move types for each iteration
 PMove = cumsum(PMove);
+rand_checks = rand(NSamples, 1) < PMove;
+JumpTypes = length(PMove)+1 - sum(rand_checks, 2);
 
 % Run Chain
 for nn=1:NSamples
-    %Get move type:
-    JumpType = length(PMove)+1 - sum(rand < PMove);
+    JumpType = JumpTypes(nn);
     K = length(Mu_X);
 
     switch JumpType
