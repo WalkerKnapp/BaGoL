@@ -181,33 +181,11 @@ for nn=1:NChain+NBurnin
             Alpha_Y = Alpha_YTest;
 
             pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
-            
-            if nn>NBurnin %Then record in chain
-                
-                Chain(nn-NBurnin).N = K;
-                Chain(nn-NBurnin).X = Mu_X';
-                Chain(nn-NBurnin).Y = Mu_Y';
-                Chain(nn-NBurnin).AlphaX = Alpha_X';
-                Chain(nn-NBurnin).AlphaY = Alpha_Y';
-                Chain(nn-NBurnin).ID = Z;
-                
-            end
 
         case 2  %Reallocation of Z
             
             [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                 Gibbs_Z(pair_probs, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
-                        
-            if nn>NBurnin %Then record in chain
-                
-                Chain(nn-NBurnin).N = length(Mu_X);
-                Chain(nn-NBurnin).X = Mu_X';
-                Chain(nn-NBurnin).Y = Mu_Y';
-                Chain(nn-NBurnin).AlphaX = Alpha_X';
-                Chain(nn-NBurnin).AlphaY = Alpha_Y';
-                Chain(nn-NBurnin).ID = Z;
-                
-            end
             
         case 3  %Add
                         
@@ -234,7 +212,7 @@ for nn=1:NChain+NBurnin
             %Prior Raio
             PR = PR_addition(K);
             
-            alloc_fracs = (K * sum(double(pair_probs_test), 2)) ./ ((K+1) * sum(double(pair_probs), 2));
+            alloc_fracs = (K * sum(pair_probs_test, 2)) ./ ((K+1) * sum(pair_probs, 2));
             AllocR = prod(alloc_fracs);
             
             %Posterior Ratio
@@ -246,77 +224,53 @@ for nn=1:NChain+NBurnin
                     Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
             end
             
-            if nn>NBurnin %Then record in chain
-                
-                Chain(nn-NBurnin).N = length(Mu_X);
-                Chain(nn-NBurnin).X = Mu_X';
-                Chain(nn-NBurnin).Y = Mu_Y';
-                Chain(nn-NBurnin).AlphaX = Alpha_X';
-                Chain(nn-NBurnin).AlphaY = Alpha_Y';
-                Chain(nn-NBurnin).ID = Z;
-                
-            end
-            
         case 4  %Remove
             
-            if K==1 %Then update chain and return
-                if nn>NBurnin %Then record in chain
-                    
-                    Chain(nn-NBurnin).N = K;
-                    Chain(nn-NBurnin).X = Mu_X';
-                    Chain(nn-NBurnin).Y = Mu_Y';
-                    Chain(nn-NBurnin).AlphaX = Alpha_X';
-                    Chain(nn-NBurnin).AlphaY = Alpha_Y';
-                    Chain(nn-NBurnin).ID = Z;
-                    
-                end
-                continue;
-            end
+            if K~=1
+                %pick emitter to remove:
+                ID =randi(K);
             
-            %pick emitter to remove:
-            ID =randi(K);
+                Mu_XTest = Mu_X;
+                Mu_YTest = Mu_Y;
+                Alpha_XTest = Alpha_X;
+                Alpha_YTest = Alpha_Y;
             
-            Mu_XTest = Mu_X;
-            Mu_YTest = Mu_Y;
-            Alpha_XTest = Alpha_X;
-            Alpha_YTest = Alpha_Y;
-            
-            %Remove from list
-            Mu_XTest(ID) = [];
-            Mu_YTest(ID) = [];
-            Alpha_XTest(ID) = [];
-            Alpha_YTest(ID) = [];
+                %Remove from list
+                Mu_XTest(ID) = [];
+                Mu_YTest(ID) = [];
+                Alpha_XTest(ID) = [];
+                Alpha_YTest(ID) = [];
 
-            pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
+                pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
             
-            %Prior Raio
-            PR = PR_removal(K);
+                %Prior Raio
+                PR = PR_removal(K);
             
-            %Probability Ratio of Proposed Allocation and Current Allocation 
-            alloc_fracs = (K * sum(double(pair_probs_test), 2)) ./ ((K-1) * sum(double(pair_probs), 2));
-            AllocR = prod(alloc_fracs);
+                %Probability Ratio of Proposed Allocation and Current Allocation 
+                alloc_fracs = (K * sum(pair_probs_test, 2)) ./ ((K-1) * sum(pair_probs, 2));
+                AllocR = prod(alloc_fracs);
             
-            %Posterior Ratio
-            A = PR*AllocR;
+                %Posterior Ratio
+                A = PR*AllocR;
             
-            if rand<A
-                %Gibbs allocation
-                [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
-                    Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
+                if rand<A
+                    %Gibbs allocation
+                    [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
+                        Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
+                end
             end
-            
-            if nn>NBurnin %Then record in chain
+    end
+
+    if nn>NBurnin %Then record in chain
                 
-                Chain(nn-NBurnin).N = length(Mu_X);
-                Chain(nn-NBurnin).X = Mu_X';
-                Chain(nn-NBurnin).Y = Mu_Y';
-                Chain(nn-NBurnin).AlphaX = Alpha_X';
-                Chain(nn-NBurnin).AlphaY = Alpha_Y';
-                Chain(nn-NBurnin).ID = Z;
+        Chain(nn-NBurnin).N = length(Mu_X);
+        Chain(nn-NBurnin).X = Mu_X';
+        Chain(nn-NBurnin).Y = Mu_Y';
+        Chain(nn-NBurnin).AlphaX = Alpha_X';
+        Chain(nn-NBurnin).AlphaY = Alpha_Y';
+        Chain(nn-NBurnin).ID = Z;
                 
-            end
-            
-    end    
+   end
     
     %DEBUG = 0;
     if DEBUG==1 %for testing
@@ -328,7 +282,7 @@ for nn=1:NChain+NBurnin
         xlabel('X(nm)')
         ylabel('Y(nm)')
         hold off
-        pause(.001)
+        %pause(.001)
     elseif DEBUG == 2
         RadiusScale = 2;
         CircleRadius = sqrt((SMD.X_SE.^2 + SMD.Y_SE.^2) / 2) * RadiusScale;
@@ -351,7 +305,7 @@ for nn=1:NChain+NBurnin
         ylabel('Y(nm)')
        
         hold off
-        pause(.001)
+        %pause(.001)
     end
 end
 

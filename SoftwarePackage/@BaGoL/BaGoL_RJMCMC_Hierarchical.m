@@ -190,7 +190,7 @@ for nn=1:NSamples
             %Prior Raio
             PR = PR_addition(K);
             
-            alloc_fracs = (K * sum(double(pair_probs_test), 2)) ./ ((K+1) * sum(double(pair_probs), 2));
+            alloc_fracs = (K * sum(pair_probs_test, 2)) ./ ((K+1) * sum(pair_probs, 2));
             AllocR = prod(alloc_fracs);
             
             %Posterior Ratio
