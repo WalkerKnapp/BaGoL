@@ -372,9 +372,9 @@ function [Mu]=Gibbs_Mu(N,Z,X,Sigma)
     B = accumarray(Z, Sigma_inv_sq, [N 1]);  % Sum se^-2 for all emitters
 
     XMLE = A./B;
-    X_SE = 1./sqrt(B);
 
-    Mu = normrnd(XMLE, X_SE)';
+    Mu = randn(size(B), 'like', B) ./ sqrt(B) + XMLE;
+    Mu = Mu';
 end
 
 function [Alpha,Center] = calAlpha(Xs,Sigs,Frames,SigAlpha)
