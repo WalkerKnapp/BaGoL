@@ -193,18 +193,16 @@ for nn=1:NChain+NBurnin
             em_sample = randi(length(SMD.X));
             Xdraw = randn() .* SMD.X_SE(em_sample) + SMD.X(em_sample);
             Ydraw = randn() .* SMD.Y_SE(em_sample) + SMD.Y(em_sample);
-            Mu_XTest = cat(2, Mu_X, Xdraw);
-            Mu_YTest = cat(2, Mu_Y, Ydraw);
 
             if SigAlpha>0
-                Alpha_XTest = cat(2,Alpha_X,SigAlpha*randn());
-                Alpha_YTest = cat(2,Alpha_Y,SigAlpha*randn());
+                AXdraw = SigAlpha*randn();
+                AYdraw = SigAlpha*randn();
             else
-                Alpha_XTest = cat(2,Alpha_X,0);
-                Alpha_YTest = cat(2,Alpha_Y,0);
+                AXdraw = 0;
+                AYdraw = 0;
             end
 
-            new_emitter_probs = computePairProbs(SMD, Xdraw, Ydraw, Alpha_XTest(end), Alpha_YTest(end));
+            new_emitter_probs = computePairProbs(SMD, Xdraw, Ydraw, AXdraw, AYdraw);
             draw_pdf = sum(new_emitter_probs);
 
             pair_probs_test = cat(2, pair_probs, new_emitter_probs);
@@ -219,6 +217,11 @@ for nn=1:NChain+NBurnin
             A = PR*AllocR/(Area*draw_pdf);
 
             if rand<A
+                Mu_XTest = cat(2, Mu_X, Xdraw);
+                Mu_YTest = cat(2, Mu_Y, Ydraw);
+                Alpha_XTest = cat(2, Alpha_X, AXdraw);
+                Alpha_YTest = cat(2, Alpha_Y, AYdraw);
+
                 %Gibbs allocation
                 [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                     Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
@@ -229,17 +232,6 @@ for nn=1:NChain+NBurnin
             if K~=1
                 %pick emitter to remove:
                 ID =randi(K);
-            
-                Mu_XTest = Mu_X;
-                Mu_YTest = Mu_Y;
-                Alpha_XTest = Alpha_X;
-                Alpha_YTest = Alpha_Y;
-            
-                %Remove from list
-                Mu_XTest(ID) = [];
-                Mu_YTest(ID) = [];
-                Alpha_XTest(ID) = [];
-                Alpha_YTest(ID) = [];
 
                 pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
             
@@ -254,6 +246,16 @@ for nn=1:NChain+NBurnin
                 A = PR*AllocR;
             
                 if rand<A
+                    Mu_XTest = Mu_X;
+                    Mu_YTest = Mu_Y;
+                    Alpha_XTest = Alpha_X;
+                    Alpha_YTest = Alpha_Y;
+
+                    Mu_XTest(ID) = [];
+                    Mu_YTest(ID) = [];
+                    Alpha_XTest(ID) = [];
+                    Alpha_YTest(ID) = [];
+
                     %Gibbs allocation
                     [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                         Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
