@@ -99,6 +99,7 @@ pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
 % Intial Allocation
 [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
     Gibbs_Z(pair_probs, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
+pair_probs_sum = sum(pair_probs, 2);
 
 if N < 100
    LengN = 100; 
@@ -159,11 +160,13 @@ for nn=1:NSamples
             Alpha_Y = Alpha_YTest;
 
             pair_probs = computePairProbs(SMD, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
+            pair_probs_sum = sum(pair_probs, 2);
 
         case 2  %Reallocation of Z
             
             [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                 Gibbs_Z(pair_probs, Mu_X, Mu_Y, Alpha_X, Alpha_Y);
+            pair_probs_sum = sum(pair_probs, 2);
                                     
         case 3  %Add
                         
@@ -182,13 +185,11 @@ for nn=1:NSamples
 
             new_emitter_probs = computePairProbs(SMD, Xdraw, Ydraw, AXdraw, AYdraw);
             draw_pdf = sum(new_emitter_probs);
-
-            pair_probs_test = cat(2, pair_probs, new_emitter_probs);
                         
             %Prior Raio
             PR = PR_addition(K);
             
-            alloc_fracs = (K * sum(pair_probs_test, 2)) ./ ((K+1) * sum(pair_probs, 2));
+            alloc_fracs = (K * (pair_probs_sum)) ./ ((K+1) * (pair_probs_sum + new_emitter_probs));
             AllocR = prod(alloc_fracs);
             
             %Posterior Ratio
@@ -200,9 +201,13 @@ for nn=1:NSamples
                 Alpha_XTest = cat(2, Alpha_X, AXdraw);
                 Alpha_YTest = cat(2, Alpha_Y, AYdraw);
 
+                pair_probs_test = cat(2, pair_probs, new_emitter_probs);
+
                 %Gibbs allocation
                 [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                     Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
+
+                pair_probs_sum = sum(pair_probs, 2);
             end
             
         case 4  %Remove
@@ -213,14 +218,12 @@ for nn=1:NSamples
             
             %pick emitter to remove:
             ID =randi(K);
-
-            pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
             
             %Prior Raio
             PR = PR_removal(K);
             
             %Probability Ratio of Proposed Allocation and Current Allocation 
-            alloc_fracs = (K * sum(double(pair_probs_test), 2)) ./ ((K-1) * sum(double(pair_probs), 2));
+            alloc_fracs = (K * (pair_probs_sum - pair_probs(:, ID))) ./ ((K-1) * pair_probs_sum);
             AllocR = prod(alloc_fracs);
             
             %Posterior Ratio
@@ -237,9 +240,12 @@ for nn=1:NSamples
                 Alpha_XTest(ID) = [];
                 Alpha_YTest(ID) = [];
 
+                pair_probs_test = pair_probs(:, [1:ID-1 ID+1:K]);
+
                 %Gibbs allocation
                 [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                     Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
+                pair_probs_sum = sum(pair_probs, 2);
             end
                         
     end    
