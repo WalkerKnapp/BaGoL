@@ -190,16 +190,13 @@ for nn=1:NSamples
             %Prior Raio
             PR = PR_addition(K);
             
-            LAlloc_Current = p_Alloc(pair_probs);
-            LAlloc_Test = p_Alloc(pair_probs_test);
-            AllocR = exp(LAlloc_Test-LAlloc_Current);
+            alloc_fracs = (K * sum(double(pair_probs_test), 2)) ./ ((K+1) * sum(double(pair_probs), 2));
+            AllocR = prod(alloc_fracs);
             
             %Posterior Ratio
             A = PR*AllocR/(Area*draw_pdf);
-            
-            Accept = isinf(LAlloc_Current) & LAlloc_Current < 0;
-            
-            if rand<A || Accept
+                        
+            if rand<A
                 %Gibbs allocation
                 [Z, Mu_X, Mu_Y, Alpha_X, Alpha_Y, pair_probs] = ...
                     Gibbs_Z(pair_probs_test, Mu_XTest, Mu_YTest, Alpha_XTest, Alpha_YTest);
@@ -231,9 +228,8 @@ for nn=1:NSamples
             PR = PR_removal(K);
             
             %Probability Ratio of Proposed Allocation and Current Allocation 
-            LAlloc_Current = p_Alloc(pair_probs);
-            LAlloc_Test = p_Alloc(pair_probs_test);
-            AllocR = exp(LAlloc_Test-LAlloc_Current);
+            alloc_fracs = (K * sum(double(pair_probs_test), 2)) ./ ((K-1) * sum(double(pair_probs), 2));
+            AllocR = prod(alloc_fracs);
             
             %Posterior Ratio
             A = PR*AllocR;
