@@ -270,7 +270,13 @@ classdef BaGoL < handle
                         PDFgrid = PDFgrid + single(normpdf(Xg,obj.ClusterSMD(nn).X(pp),obj.ClusterSMD(nn).X_SE(pp))...
                             .*normpdf(Yg,obj.ClusterSMD(nn).Y(pp),obj.ClusterSMD(nn).Y_SE(pp))); 
                     end
+
+                    PDFgrids{nn}.CDF = cumsum(PDFgrid(:)/sum(PDFgrid(:)));
+
+                    PDFgrid = PDFgrid/sum(PDFgrid(:));
+
                     PDFgrids{nn}.PDFgrid = PDFgrid;
+                    PDFgrids{nn}.Area = sum(sum(PDFgrid>max(PDFgrid(:))/1000));
                 end
                 
                 %If the chain is initialized with a single paramter use a
@@ -290,11 +296,11 @@ classdef BaGoL < handle
                         if mm == 1
                             %For the first sample, the locations are intitialized to random values
                             [K,MuX,MuY,AlphaX,AlphaY,ID]=BaGoL.BaGoL_RJMCMC_Hierarchical(obj.ClusterSMD(nn) ...
-                                ,PDFgrids{nn}.PDFgrid,MaxAlpha,obj.P_Jumps,obj.NSamples,tXi);
+                                ,PDFgrids{nn}.PDFgrid,PDFgrids{nn}.CDF, PDFgrids{nn}.Area, MaxAlpha,obj.P_Jumps,obj.NSamples,tXi);
                         else
                             %For jumps other than the first one, the previous values in the chain are used
                             [K,MuX,MuY,AlphaX,AlphaY,ID]=BaGoL.BaGoL_RJMCMC_Hierarchical(obj.ClusterSMD(nn) ...
-                                ,PDFgrids{nn}.PDFgrid,MaxAlpha,obj.P_Jumps,obj.NSamples,tXi,tmp(nn).MuX,...
+                                ,PDFgrids{nn}.PDFgrid,PDFgrids{nn}.CDF, PDFgrids{nn}.Area, MaxAlpha,obj.P_Jumps,obj.NSamples,tXi,tmp(nn).MuX,...
                                 tmp(nn).MuY,tmp(nn).AlphaX,tmp(nn).AlphaY);
                         end
                         %tmp is a temporary structure to save some params
@@ -360,7 +366,7 @@ classdef BaGoL < handle
        errPlot(SMD);
        SMD=loadPICASSOh5(DataDir,FileName)
        [Chain]=BaGoL_RJMCMC(SMD,Xi,MaxAlpha,PMove,NChain,NBurnin,DEBUG)
-       [K,X,Y,AlphaX,AlphaY,ID]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,AlphaSTD,P_Jumps,NSamples,Xi,MuX,MuY,AlphaX,AlphaY)
+       [K,X,Y,AlphaX,AlphaY,ID]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,CDF,Area,AlphaSTD,P_Jumps,NSamples,Xi,MuX,MuY,AlphaX,AlphaY)
        [SRIm,MapIm]=makeIm(SMD,MAPN,SZ,PixSize,XStart,YStart)
        Xi = sampleGam(NPoints,K,Xi,Alpha,Beta);
        Xi = samplePoiss(NPoints,K,Xi,Alpha,Beta);

@@ -1,4 +1,4 @@
-function [K,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Z]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,...
+function [K,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Z]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,CDF,Area,...
                SigAlpha,PMove,NSamples,Xi,Mu_X,Mu_Y,Alpha_X,Alpha_Y)
 %BaGoL_RJMCMC_Hierarchical BaGoL's core RJMCMC algorithm that takes
 %NSamples samples from the posterior using RJMCMC and return the last
@@ -68,30 +68,26 @@ function [K,Mu_X,Mu_Y,Alpha_X,Alpha_Y,Z]=BaGoL_RJMCMC_Hierarchical(SMD,PDFgrid,.
 X_min = min(SMD.X-3*SMD.X_SE);
 Y_min = min(SMD.Y-3*SMD.Y_SE);
 
-CDF = cumsum(PDFgrid(:)/sum(PDFgrid(:)));
-PDFgrid = PDFgrid/sum(PDFgrid(:));
-Area = sum(sum(PDFgrid>max(PDFgrid(:))/1000));
-
-if nargin<4
+if nargin<6
     PMove = [.25 .25 .25 .25]; %PMove = [Theta Z Birth Death]
 end
-if nargin<5
+if nargin<7
     NSamples = 10;
 end
 
 N=length(SMD.X);
-if nargin<7
+if nargin<9
 %Intial K Guess
     K=ceil(N/prod(Xi));
 else
     K=length(Mu_X); 
 end
-if nargin<7
+if nargin<9
 %Initial Locations
     Mu_X =SMD.X(randi(N,[1 K]))';
     Mu_Y =SMD.Y(randi(N,[1 K]))';
 end
-if nargin<9
+if nargin<11
 %Initial Alphas
     Alpha_X = zeros([1 K]);
     Alpha_Y = zeros([1 K]);
